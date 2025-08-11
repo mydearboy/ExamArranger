@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Combined Interactive Grid & Grade Table</title>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #0d1117; /* Dark background from a code editor theme */
+            color: #c9d1d9; /* Light text */
+            margin: 0; /* Removed fixed margin */
+            padding: 20px;
+        }
+
+        h1 {
+            color: #58a6ff; /* A bright, friendly blue */
+            margin-bottom: 10px;
+        }
+
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .whiteboard-legend {
+            width: 100%;
+            max-width: 420px;
+            text-align: center;
+            margin-bottom: 5px;
+            font-style: italic;
+        }
+
+        .whiteboard-line {
+            width: 100%;
+            max-width: 420px;
+            height: 2px;
+            background-color: #c9d1d9;
+            margin-bottom: 15px;
+            box-shadow: 0 0 5px #c9d1d9;
+        }
+
+        #grid-container {
+            display: grid;
+            border: 2px solid #58a6ff;
+            box-shadow: 0 0 10px #58a6ff;
+            transition: all 0.3s ease;
+            margin-bottom: 20px;
+            width: 100%; /* Make the container take full width */
+            max-width: 500px; /* Optional: limit max width for larger screens */
+            aspect-ratio: 1 / 1; /* Keep the grid square */
+        }
+
+        .grid-cell {
+            /* Removed fixed width and height to make them responsive */
+            /* The grid-template-columns and aspect-ratio on the container will handle sizing */
+            background-color: #21262d; /* Darker cell background */
+            border: 1px solid #30363d;
+            box-sizing: border-box;
+            cursor: pointer; /* Added cursor for better UX */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #0d1117;
+            user-select: none;
+            transition: background-color 0.1s ease, border-color 0.1s ease, color 0.1s ease;
+            border-radius: 4px; /* Rounded corners for cells */
+        }
+
+        .grid-cell.selected {
+            background-color: #c9d1d9;
+            border: 1px solid #444;
+            color: #21262d;
+        }
+        
+        /* New Grade-specific colors */
+        .grid-cell.occupied.grade-G6-color { background-color: #ff7b72; }
+        .grid-cell.occupied.grade-G7-color { background-color: #f7a76c; }
+        .grid-cell.occupied.grade-G8-color { background-color: #e4c16a; }
+        .grid-cell.occupied.grade-G9-color { background-color: #a4e400; }
+        .grid-cell.occupied.grade-G10-color { background-color: #56d4f2; }
+        .grid-cell.occupied.grade-G11-sci-color { background-color: #9d80f4; }
+        .grid-cell.occupied.grade-G11-comm-color { background-color: #f26cb3; }
+        .grid-cell.occupied.grade-G12-sci-color { background-color: #8be9fd; }
+        .grid-cell.occupied.grade-G12-comm-color { background-color: #ffc272; }
+
+        button {
+            padding: 10px 15px;
+            border: 1px solid #58a6ff;
+            background-color: transparent;
+            color: #58a6ff;
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 1em;
+            transition: background-color 0.2s, color 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            background-color: #58a6ff;
+            color: #0d1117;
+            box-shadow: 0 0 8px #58a6ff;
+        }
+        
+        .summary-container {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #58a6ff;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        /* Styles for the Grade Table */
+        #table-container {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            width: 100%;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%; /* Make the table responsive */
+            max-width: 300px;
+            box-shadow: 0 0 10px rgba(88, 166, 255, 0.2);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        th, td {
+            border: 1px solid #30363d;
+            padding: 12px;
+            text-align: center;
+            color: #c9d1d9;
+        }
+        
+        th {
+            background-color: #161b22;
+            font-weight: bold;
+        }
+        
+        tr:nth-child(even) {
+            background-color: #21262d;
+        }
+        
+        tr:hover {
+            background-color: #30363d;
+        }
+        
+        /* New Grade Legend */
+        .grade-legend {
+            display: inline-block;
+            width: 15px;
+            height: 15px;
+            border-radius: 3px;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        input[type="number"] {
+            width: 100%;
+            box-sizing: border-box;
+            background-color: #30363d;
+            border: 1px solid #444c56;
+            color: #c9d1d9;
+            text-align: center;
+            font-family: inherit;
+            font-size: 1em;
+            border-radius: 4px;
+            padding: 5px;
+        }
+
+        .drag-info {
+            position: absolute;
+            background: #58a6ff;
+            color: #0d1117;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            pointer-events: none;
+            z-index: 1000;
+            white-space: nowrap;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Seating Arrangement</h1>
+    <div class="controls">
+        <label for="grid-size">Grid Size (e.g., 5 for 5x5):</label>
+        <input type="number" id="grid-size" value="5" min="1">
+        <button onclick="createGrid()">Create Grid</button>
+        <button onclick="clearAllSelections()">Clear Selections</button>
+        <button onclick="arrangeStudents()">Arrange Students</button>
+    </div>
+    
+    <div class="whiteboard-legend">Whiteboard</div>
+    <div class="whiteboard-line"></div>
+
+    <div id="grid-container"></div>
+    
+    <div class="drag-info" id="drag-info-box"></div>
+
+    <div class="summary-container">
+        <span id="seat-summary">Seats Available: 0</span>
+        <span id="student-summary">Students to Seat: 0</span>
+    </div>
+
+    <div id="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Grade</th>
+                    <th>Number of Students</th>
+                </tr>
+            </thead>
+            <tbody id="grade-table-body">
+                <tr data-grade="G6">
+                    <td><div class="grade-legend grade-G6-color"></div>Grade 6</td>
+                    <td><input type="number" value="5" min="0"></td>
+                </tr>
+                <tr data-grade="G7">
+                    <td><div class="grade-legend grade-G7-color"></div>Grade 7</td>
+                    <td><input type="number" value="5" min="0"></td>
+                </tr>
+                <tr data-grade="G8">
+                    <td><div class="grade-legend grade-G8-color"></div>Grade 8</td>
+                    <td><input type="number" value="5" min="0"></td>
+                </tr>
+                <tr data-grade="G9">
+                    <td><div class="grade-legend grade-G9-color"></div>Grade 9</td>
+                    <td><input type="number" value="5" min="0"></td>
+                </tr>
+                <tr data-grade="G10">
+                    <td><div class="grade-legend grade-G10-color"></div>Grade 10</td>
+                    <td><input type="number" value="5" min="0"></td>
+                </tr>
+                <tr data-grade="G11-sci">
+                    <td><div class="grade-legend grade-G11-sci-color"></div>Grade 11 Science</td>
+                    <td><input type="number" value="5" min="0"></td>
+                </tr>
+                <tr data-grade="G11-comm">
+                    <td><div class="grade-legend grade-G11-comm-color"></div>Grade 11 Commerce</td>
+                    <td><input type="number" value="5" min="0"></td>
+                </tr>
+                <tr data-grade="G12-sci">
+                    <td><div class="grade-legend grade-G12-sci-color"></div>Grade 12 Science</td>
+                    <td><input type="number" value="5" min="0"></td>
+                </tr>
+                <tr data-grade="G12-comm">
+                    <td><div class="grade-legend grade-G12-comm-color"></div>Grade 12 Commerce</td>
+                    <td><input type="number" value="5" min="0"></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            createGrid();
+            updateSeatAndStudentSums();
+            document.querySelectorAll('#grade-table-body input').forEach(input => {
+                input.addEventListener('input', updateSeatAndStudentSums);
+            });
+        });
+
+        let isDragging = false;
+        let isTapping = false;
+        let startCellIndex = null;
+        let gridSize = 5;
+        let selectedCells = new Set();
+        let dragSelection = new Set();
+        const dragInfoBox = document.getElementById('drag-info-box');
+
+        /**
+         * Creates a new grid based on the user-specified size.
+         */
+        function createGrid() {
+            gridSize = parseInt(document.getElementById('grid-size').value);
+            const gridContainer = document.getElementById('grid-container');
+
+            if (gridSize < 1) {
+                // A better approach than alert()
+                const message = document.createElement('div');
+                message.textContent = "Grid size must be at least 1.";
+                message.style.cssText = "position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #ff7b72; color: #0d1117; padding: 10px 20px; border-radius: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); z-index: 1000;";
+                document.body.appendChild(message);
+                setTimeout(() => message.remove(), 3000);
+                return;
+            }
+
+            gridContainer.innerHTML = '';
+            gridContainer.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
+            gridContainer.style.gridTemplateRows = `repeat(${gridSize}, 1fr)`;
+
+            selectedCells.clear();
+
+            for (let i = 0; i < gridSize * gridSize; i++) {
+                const cell = document.createElement('div');
+                cell.classList.add('grid-cell');
+                cell.dataset.index = i;
+                
+                // Unified event handling for both mouse and touch
+                cell.addEventListener('mousedown', startDrag);
+                cell.addEventListener('touchstart', startDrag, { passive: false });
+                cell.addEventListener('mouseover', selectOnDrag);
+                cell.addEventListener('touchmove', selectOnDrag, { passive: false });
+                
+                gridContainer.appendChild(cell);
+            }
+            
+            // Add global listeners for mouse and touch end events
+            window.addEventListener('mouseup', endDrag);
+            window.addEventListener('touchend', endDrag);
+            
+            updateSeatAndStudentSums();
+        }
+
+        /**
+         * Clears all selections from the grid.
+         */
+        function clearAllSelections() {
+            const cells = document.querySelectorAll('.grid-cell');
+            cells.forEach(c => {
+                // Remove all classes related to a seating arrangement
+                c.classList.remove('selected', 'occupied', 'grade-G6-color', 'grade-G7-color', 'grade-G8-color', 'grade-G9-color', 'grade-G10-color', 'grade-G11-sci-color', 'grade-G11-comm-color', 'grade-G12-sci-color', 'grade-G12-comm-color');
+                c.textContent = '';
+            });
+            selectedCells.clear();
+            updateSeatAndStudentSums();
+        }
+
+        /**
+         * Toggles the selection of a single cell on a tap.
+         */
+        function toggleSingleCell(index) {
+            const cell = document.querySelector(`.grid-cell[data-index='${index}']`);
+            if (!cell) return;
+
+            // Clear any previous color classes before toggling
+            cell.classList.remove('occupied', 'grade-G6-color', 'grade-G7-color', 'grade-G8-color', 'grade-G9-color', 'grade-G10-color', 'grade-G11-sci-color', 'grade-G11-comm-color', 'grade-G12-sci-color', 'grade-G12-comm-color');
+
+            if (selectedCells.has(index)) {
+                selectedCells.delete(index);
+                cell.classList.remove('selected');
+                cell.textContent = '';
+            } else {
+                selectedCells.add(index);
+                cell.classList.add('selected');
+                cell.textContent = '';
+            }
+            updateSeatAndStudentSums();
+        }
+
+        /**
+         * Updates the seat and student summary counters.
+         */
+        function updateSeatAndStudentSums() {
+            const seatSummary = document.getElementById('seat-summary');
+            const studentSummary = document.getElementById('student-summary');
+            
+            const totalStudents = getGradesData().reduce((sum, g) => sum + g.count, 0);
+            
+            seatSummary.textContent = `Seats Available: ${selectedCells.size}`;
+            studentSummary.textContent = `Students to Seat: ${totalStudents}`;
+        }
+
+        /**
+         * Calculates the coordinates of a cell from its index.
+         * @param {number} index The index of the cell.
+         * @returns {{row: number, col: number}} The row and column.
+         */
+        function getCellCoordinates(index) {
+            const row = Math.floor(index / gridSize);
+            const col = index % gridSize;
+            return { row, col };
+        }
+
+        /**
+         * Starts the drag-selection process on mousedown or touchstart.
+         */
+        function startDrag(event) {
+            // Check for both mouse and touch events
+            const isTouchEvent = event.touches && event.touches.length > 0;
+            if (isTouchEvent) {
+                event.preventDefault(); // Prevents scrolling on mobile
+            }
+
+            isDragging = true;
+            isTapping = true;
+            dragSelection.clear();
+            
+            const targetCell = isTouchEvent ? document.elementFromPoint(event.touches[0].clientX, event.touches[0].clientY) : event.target;
+            
+            if (!targetCell || !targetCell.classList.contains('grid-cell')) {
+                // If the user starts the drag outside a cell, just end the drag immediately
+                endDrag();
+                return;
+            }
+            
+            startCellIndex = parseInt(targetCell.dataset.index);
+            dragInfoBox.style.display = 'block';
+        }
+
+        /**
+         * Selects cells while the mouse is dragged or a finger is swiped.
+         */
+        function selectOnDrag(event) {
+            if (!isDragging) return;
+
+            const isTouchEvent = event.touches && event.touches.length > 0;
+            if (isTouchEvent) {
+                event.preventDefault(); // Prevents scrolling on mobile
+            }
+
+            const cells = document.querySelectorAll('.grid-cell');
+            const eventTarget = isTouchEvent ? document.elementFromPoint(event.touches[0].clientX, event.touches[0].clientY) : event.target;
+            
+            if (!eventTarget || !eventTarget.classList.contains('grid-cell')) return;
+
+            const endCellIndex = parseInt(eventTarget.dataset.index);
+            
+            // If the user moves, it's no longer a tap
+            if (startCellIndex !== endCellIndex) {
+                isTapping = false;
+            }
+
+            const startCoords = getCellCoordinates(startCellIndex);
+            const endCoords = getCellCoordinates(endCellIndex);
+
+            const minRow = Math.min(startCoords.row, endCoords.row);
+            const maxRow = Math.max(startCoords.row, endCoords.row);
+            const minCol = Math.min(startCoords.col, endCoords.col);
+            const maxCol = Math.max(startCoords.col, endCoords.col);
+            
+            // Calculate and display dragging info
+            const draggedRows = maxRow - minRow + 1;
+            const draggedCols = maxCol - minCol + 1;
+            dragInfoBox.textContent = `${draggedRows}x${draggedCols}`;
+            dragInfoBox.style.left = `${(isTouchEvent ? event.touches[0].clientX : event.clientX) + 10}px`;
+            dragInfoBox.style.top = `${(isTouchEvent ? event.touches[0].clientY : event.clientY) + 10}px`;
+
+            // Clear previous drag selection visual
+            dragSelection.forEach(index => {
+                if (!selectedCells.has(index)) {
+                    const cell = cells[index];
+                    cell.classList.remove('selected');
+                    cell.textContent = '';
+                }
+            });
+            dragSelection.clear();
+
+            // Select new cells in the dragged area
+            for (let i = minRow; i <= maxRow; i++) {
+                for (let j = minCol; j <= maxCol; j++) {
+                    const index = i * gridSize + j;
+                    const cell = cells[index];
+                    if (!selectedCells.has(index)) {
+                        cell.classList.add('selected');
+                        cell.textContent = '';
+                    }
+                    dragSelection.add(index);
+                }
+            }
+        }
+
+        /**
+         * Ends the drag-selection process, finalizing the selected cells.
+         */
+        function endDrag(event) {
+            if (!isDragging) return;
+
+            if (isTapping) {
+                // It was a tap, so toggle a single cell
+                toggleSingleCell(startCellIndex);
+            } else {
+                // It was a drag, so finalize the selection
+                dragSelection.forEach(index => selectedCells.add(index));
+            }
+            
+            isDragging = false;
+            isTapping = false;
+            startCellIndex = null; // Reset the start index
+            dragInfoBox.style.display = 'none';
+            dragSelection.clear(); // Clear the temporary drag selection
+            updateSeatAndStudentSums();
+        }
+
+        /**
+         * Calculates the Manhattan distance between two cells.
+         * @param {number} index1 The index of the first cell.
+         * @param {number} index2 The index of the second cell.
+         * @returns {number} The Manhattan distance.
+         */
+        function calculateManhattanDistance(index1, index2) {
+            const coords1 = getCellCoordinates(index1);
+            const coords2 = getCellCoordinates(index2);
+            return Math.abs(coords1.row - coords2.row) + Math.abs(coords1.col - coords2.col);
+        }
+
+        /**
+         * Reads student data from the table and sorts by student count.
+         * @returns {{grade: string, count: number}[]} Sorted array of grade data.
+         */
+        function getGradesData() {
+            const gradeRows = document.querySelectorAll('#grade-table-body tr');
+            const gradesData = [];
+            gradeRows.forEach(row => {
+                const grade = row.dataset.grade;
+                const count = parseInt(row.querySelector('input').value);
+                if (!isNaN(count) && count > 0) {
+                    gradesData.push({ grade, count });
+                }
+            });
+            // Sort grades by student count in descending order
+            return gradesData.sort((a, b) => b.count - a.count);
+        }
+
+        /**
+         * Main function to arrange students using a greedy "farthest-first" algorithm.
+         */
+        function arrangeStudents() {
+            const availableCells = Array.from(document.querySelectorAll('.grid-cell.selected'));
+            const gradesData = getGradesData();
+            const totalStudents = gradesData.reduce((sum, g) => sum + g.count, 0);
+
+            // Clear any previous arrangement
+            document.querySelectorAll('.grid-cell').forEach(cell => {
+                // Keep the 'selected' class, but remove everything else
+                if (cell.classList.contains('selected')) {
+                    cell.textContent = '';
+                }
+                cell.classList.remove('occupied', 'grade-G6-color', 'grade-G7-color', 'grade-G8-color', 'grade-G9-color', 'grade-G10-color', 'grade-G11-sci-color', 'grade-G11-comm-color', 'grade-G12-sci-color', 'grade-G12-comm-color');
+            });
+
+            if (availableCells.length < totalStudents) {
+                // A better approach than alert()
+                const message = document.createElement('div');
+                message.textContent = `Not enough seats! You have ${availableCells.length} seats but need ${totalStudents} to place all students.`;
+                message.style.cssText = "position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #ff7b72; color: #0d1117; padding: 10px 20px; border-radius: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); z-index: 1000;";
+                document.body.appendChild(message);
+                setTimeout(() => message.remove(), 3000);
+                return;
+            }
+
+            if (totalStudents === 0) {
+                // A better approach than alert()
+                const message = document.createElement('div');
+                message.textContent = "Please enter the number of students for at least one grade.";
+                message.style.cssText = "position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #ff7b72; color: #0d1117; padding: 10px 20px; border-radius: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); z-index: 1000;";
+                document.body.appendChild(message);
+                setTimeout(() => message.remove(), 3000);
+                return;
+            }
+
+            const availableSeatIndices = availableCells.map(cell => parseInt(cell.dataset.index));
+            const seatingPlan = new Map();
+            let studentQueue = [];
+
+            // Create a queue of students to place, ensuring grades with more students are placed first.
+            let gradeIndex = 0;
+            while(studentQueue.length < totalStudents) {
+              const currentGrade = gradesData[gradeIndex % gradesData.length];
+              if (studentQueue.filter(g => g === currentGrade.grade).length < currentGrade.count) {
+                studentQueue.push(currentGrade.grade);
+              }
+              gradeIndex++;
+            }
+
+            // The main placement loop
+            for (let i = 0; i < studentQueue.length; i++) {
+                const gradeToPlace = studentQueue[i];
+                
+                let bestSeatIndex = -1;
+                let maxMinDistance = -1;
+
+                const occupiedByGrade = Array.from(seatingPlan.entries())
+                                           .filter(([_, grade]) => grade === gradeToPlace)
+                                           .map(([index, _]) => index);
+
+                // If no students of this grade have been placed, pick a random available seat
+                if (occupiedByGrade.length === 0) {
+                    const availableEmptySeats = availableSeatIndices.filter(index => !seatingPlan.has(index));
+                    const randomIndex = Math.floor(Math.random() * availableEmptySeats.length);
+                    bestSeatIndex = availableEmptySeats[randomIndex];
+                } else {
+                    // Find the best seat that is farthest from all other students of the same grade
+                    availableSeatIndices.filter(index => !seatingPlan.has(index)).forEach(emptySeatIndex => {
+                        let minDistanceToPeers = Infinity;
+                        occupiedByGrade.forEach(peerSeatIndex => {
+                            const distance = calculateManhattanDistance(emptySeatIndex, peerSeatIndex);
+                            minDistanceToPeers = Math.min(minDistanceToPeers, distance);
+                        });
+
+                        if (minDistanceToPeers > maxMinDistance) {
+                            maxMinDistance = minDistanceToPeers;
+                            bestSeatIndex = emptySeatIndex;
+                        }
+                    });
+                }
+                
+                if (bestSeatIndex !== -1) {
+                    seatingPlan.set(bestSeatIndex, gradeToPlace);
+                } else {
+                    // Fallback: if no suitable seat is found (which shouldn't happen with enough seats),
+                    // just pick the first available one.
+                    const availableEmptySeats = availableSeatIndices.filter(index => !seatingPlan.has(index));
+                    if (availableEmptySeats.length > 0) {
+                        seatingPlan.set(availableEmptySeats[0], gradeToPlace);
+                    }
+                }
+            }
+
+            // Update the grid on the page
+            const cells = document.querySelectorAll('.grid-cell');
+            cells.forEach(cell => {
+                const index = parseInt(cell.dataset.index);
+                if (seatingPlan.has(index)) {
+                    const grade = seatingPlan.get(index);
+                    cell.textContent = grade.split('-')[0]; // Display the grade, e.g., 'G11'
+                    cell.classList.add('occupied', `grade-${grade}-color`);
+                }
+            });
+        }
+    </script>
+</body>
+</html>
